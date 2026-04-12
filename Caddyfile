@@ -1,0 +1,11 @@
+http://main.localhost {
+    reverse_proxy 127.0.0.1:8001
+}
+
+http://web_socket.localhost {
+    reverse_proxy 127.0.0.1:8002
+}
+
+http://client.localhost {
+    reverse_proxy 127.0.0.1:8003
+}
