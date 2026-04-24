@@ -1,70 +1,142 @@
-version: "3.9"
-
 services:
   postgres-catalog:
     image: postgres:16-alpine
     env_file: .env
-    environment: POSTGRES_DB: ${POSTGRES_DB_CATALOG}
-    volumes: - catalog_data:/var/lib/postgresql/data
-    networks: - lib-net
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_CATALOG}
+    volumes:
+      - postgres-catalog-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_CATALOG}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - lib-net
 
   postgres-user:
     image: postgres:16-alpine
     env_file: .env
-    environment: POSTGRES_DB: ${POSTGRES_DB_USER}
-    volumes: - user_data:/var/lib/postgresql/data
-    networks: - lib-net
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_USER}
+    volumes:
+      - postgres-user-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - lib-net
 
   postgres-lending:
     image: postgres:16-alpine
     env_file: .env
-    environment: POSTGRES_DB: ${POSTGRES_DB_LENDING}
-    volumes: - lending_data:/var/lib/postgresql/data
-    networks: - lib-net
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_LENDING}
+    volumes:
+      - postgres-lending-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_LENDING}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - lib-net
 
   postgres-digital:
     image: postgres:16-alpine
     env_file: .env
-    environment: POSTGRES_DB: ${POSTGRES_DB_DIGITAL}
-    volumes: - digital_data:/var/lib/postgresql/data
-    networks: - lib-net
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_DIGITAL}
+    volumes:
+      - postgres-digital-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB_DIGITAL}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - lib-net
 
   gateway:
     build: ./gateway/nginx
-    ports: - "${GATEWAY_PORT}:80"
-    depends_on: [catalog-service, user-service, lending-service, digital-service]
-    networks: - lib-net
+    ports:
+      - "${GATEWAY_PORT}:80"
+    depends_on:
+      - catalog-service
+      - user-service
+      - lending-service
+      - digital-service
+    networks:
+      - lib-net
 
   catalog-service:
     build: ./services/catalog-service
+    ports:
+    - "${CATALOG_PORT:-8001}:8000"
     env_file: .env
-    depends_on: [postgres-catalog]
-    networks: - lib-net
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-catalog:5432/${POSTGRES_DB_CATALOG}
+    depends_on:
+      postgres-catalog:
+        condition: service_healthy
+    networks:
+      - lib-net
 
   user-service:
     build: ./services/user-service
+    ports:
+    - "${USER_PORT:-8002}:8000"
     env_file: .env
-    depends_on: [postgres-user]
-    networks: - lib-net
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-user:5432/${POSTGRES_DB_USER}
+    depends_on:
+      postgres-user:
+        condition: service_healthy
+    networks:
+      - lib-net
 
   lending-service:
     build: ./services/lending-service
+    ports:
+    - "${LENDING_PORT:-8003}:8000"
     env_file: .env
-    depends_on: [postgres-lending]
-    networks: - lib-net
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-lending:5432/${POSTGRES_DB_LENDING}
+    depends_on:
+      postgres-lending:
+        condition: service_healthy
+    networks:
+      - lib-net
 
   digital-service:
     build: ./services/digital-service
+    ports:
+    - "${DIGITAL_PORT:-8004}:8000"
     env_file: .env
-    depends_on: [postgres-digital]
-    networks: - lib-net
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-digital:5432/${POSTGRES_DB_DIGITAL}
+    depends_on:
+      postgres-digital:
+        condition: service_healthy
+    networks:
+      - lib-net
 
 networks:
   lib-net:
     driver: bridge
 
 volumes:
-  catalog_data:
-  user_data:
-  lending_data:
-  digital_data:
+  postgres-catalog-data:
+  postgres-user-data:
+  postgres-lending-data:
+  postgres-digital-data:
