@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy import UniqueConstraint 
 import enum
 
 from app.db import Base
@@ -43,6 +44,5 @@ class BookCopy(Base):
     book = relationship("Book", back_populates="copies")
     
     __table_args__ = (
-        # Уникальность: одна книга не может иметь два экземпляра с одинаковым номером
-        {'unique_constraint': 'uq_book_copy_number', 'columns': ('book_id', 'copy_number')},
+        UniqueConstraint('book_id', 'copy_number', name='uq_book_copy_number'),
     )
