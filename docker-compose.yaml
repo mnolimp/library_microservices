@@ -15,6 +15,8 @@ services:
       retries: 5
     networks:
       - lib-net
+    ports:
+      - "5432:5432"
 
   postgres-user:
     image: postgres:16-alpine
@@ -32,6 +34,8 @@ services:
       retries: 5
     networks:
       - lib-net
+    ports:
+      - "5433:5432"
 
   postgres-lending:
     image: postgres:16-alpine
@@ -49,6 +53,8 @@ services:
       retries: 5
     networks:
       - lib-net
+    ports:
+      - "5434:5432"
 
   postgres-digital:
     image: postgres:16-alpine
@@ -66,6 +72,8 @@ services:
       retries: 5
     networks:
       - lib-net
+    ports:
+      - "5435:5432"
 
   gateway:
     build: ./gateway/nginx

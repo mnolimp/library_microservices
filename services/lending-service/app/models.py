@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -33,11 +33,7 @@ class Loan(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Индексы для частых запросов
     __table_args__ = (
-        # Частый запрос: история займов пользователя
-        {'indexes': (
-            ('user_id', 'loan_date'),
-            ('status', 'due_date'),  # Для поиска просроченных
-        )},
+        Index('idx_loans_user_loan_date', 'user_id', 'loan_date'),
+        Index('idx_loans_status_due_date', 'status', 'due_date'),
     )
