@@ -10,6 +10,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db import Base
+from app import models
 
 config = context.config
 
@@ -17,7 +18,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Переопределяем URL из env
-target_url = os.getenv("DATABASE_URL", "").replace("+asyncpg", "")
+target_url = os.getenv("DATABASE_URL", "")
 if target_url:
     config.set_main_option("sqlalchemy.url", target_url)
 
