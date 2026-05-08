@@ -13,8 +13,8 @@ from app.schemas import (
     LoanWithDetails, LoanListResponse, OverdueStats, LoanStatus
 )
 
-USER_SERVICE_URL = os.getenv("USER_SERVICE_URL")
-CATALOG_SERVICE_URL = os.getenv("CATALOG_SERVICE_URL")
+USER_SERVICE_URL = os.getenv("USER_INTERNAL_URL")
+CATALOG_SERVICE_URL = os.getenv("CATALOG_INTERNAL_URL")
 
 app = FastAPI(
     title="Lending Service",

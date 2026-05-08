@@ -8,6 +8,8 @@ from app.schemas import (
     BookCreate, BookUpdate, BookResponse, BookWithCopiesResponse,
     BookCopyCreate, BookCopyResponse
 )
+import msgpack
+from fastapi import Response
 
 app = FastAPI(
     title="Catalog Service",
@@ -244,3 +246,68 @@ async def get_books_stats(db: AsyncSession = Depends(get_db)):
             "total": total_copies or 0
         }
     }
+
+@app.get("/internal/books/{book_id}")
+async def get_book_internal(book_id: int, db: AsyncSession = Depends(get_db)):
+    """Внутренний вызов: получить книгу (MessagePack)"""
+    result = await db.execute(select(Book).where(Book.id == book_id))
+    book = result.scalar_one_or_none()
+    
+    if not book:
+        return Response(status_code=404)
+    
+    data = {
+        "id": book.id,
+        "title": book.title,
+        "author": book.author,
+        "book_type": book.book_type
+    }
+    
+    return Response(
+        content=msgpack.packb(data),
+        media_type="application/x-msgpack"
+    )
+
+
+@app.get("/internal/copies/{copy_id}")
+async def get_copy_internal(copy_id: int, db: AsyncSession = Depends(get_db)):
+    """Внутренний вызов: получить экземпляр книги (MessagePack)"""
+    result = await db.execute(select(BookCopy).where(BookCopy.id == copy_id))
+    copy = result.scalar_one_or_none()
+    
+    if not copy:
+        return Response(status_code=404)
+    
+    data = {
+        "id": copy.id,
+        "book_id": copy.book_id,
+        "copy_number": copy.copy_number,
+        "status": copy.status
+    }
+    
+    return Response(
+        content=msgpack.packb(data),
+        media_type="application/x-msgpack"
+    )
+
+
+@app.get("/internal/books/by-isbn/{isbn}")
+async def get_book_by_isbn_internal(isbn: str, db: AsyncSession = Depends(get_db)):
+    """Внутренний вызов: получить книгу по ISBN (MessagePack)"""
+    result = await db.execute(select(Book).where(Book.isbn == isbn))
+    book = result.scalar_one_or_none()
+    
+    if not book:
+        return Response(status_code=404)
+    
+    data = {
+        "id": book.id,
+        "title": book.title,
+        "author": book.author,
+        "isbn": book.isbn
+    }
+    
+    return Response(
+        content=msgpack.packb(data),
+        media_type="application/x-msgpack"
+    )
