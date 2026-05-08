@@ -188,46 +188,6 @@ async def request_access(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"User with id {request.user_id} does not exist"
         )
-    
-    # Ищем цифровую книгу
-    result = await db.execute(
-        select(DigitalBook).where(DigitalBook.book_id == request.book_id)
-    )
-    digital_book = result.scalar_one_or_none()
-    
-    if not digital_book:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Digital book for book_id {request.book_id} not found"
-        )
-    
-    # Проверяем книгу в catalog-service
-    exists, book_data = await verify_book_exists(request.book_id)
-    if not exists:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Book does not exist or does not support digital format"
-        )
-    
-    # Логируем доступ
-    access_log = DigitalAccessLog(
-        digital_book_id=digital_book.id,
-        user_id=request.user_id,
-        ip_address=client_ip
-    )
-    db.add(access_log)
-    
-    # Увеличиваем счетчик доступов
-    digital_book.access_count += 1
-    
-    await db.commit()
-    
-    return DigitalAccessResponse(
-        granted=True,
-        file_url=digital_book.file_url,
-        format=digital_book.format,
-        message="Access granted successfully"
-    )
 
 @app.get("/access/logs", response_model=List[DigitalAccessLogResponse])
 async def get_access_logs(
@@ -247,22 +207,6 @@ async def get_access_logs(
     
     query = query.offset(skip).limit(limit).order_by(desc(DigitalAccessLog.access_time))
     result = await db.execute(query)
-    logs = result.scalars().all()
-    return logs
-
-@app.get("/access/logs/user/{user_id}", response_model=List[DigitalAccessLogResponse])
-async def get_user_access_logs(
-    user_id: int,
-    limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db)
-):
-    """Получить историю доступов пользователя"""
-    result = await db.execute(
-        select(DigitalAccessLog)
-        .where(DigitalAccessLog.user_id == user_id)
-        .order_by(desc(DigitalAccessLog.access_time))
-        .limit(limit)
-    )
     logs = result.scalars().all()
     return logs
 
@@ -333,37 +277,3 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         by_format=by_format,
         most_accessed_books=most_accessed
     )
-
-@app.get("/stats/book/{digital_book_id}")
-async def get_book_stats(digital_book_id: int, db: AsyncSession = Depends(get_db)):
-    """Получить статистику по конкретной цифровой книге"""
-    
-    result = await db.execute(select(DigitalBook).where(DigitalBook.id == digital_book_id))
-    book = result.scalar_one_or_none()
-    
-    if not book:
-        raise HTTPException(status_code=404, detail="Digital book not found")
-    
-    # Количество уникальных пользователей
-    unique_users = await db.scalar(
-        select(func.count(func.distinct(DigitalAccessLog.user_id)))
-        .where(DigitalAccessLog.digital_book_id == digital_book_id)
-    )
-    
-    # Доступы по дням за последнюю неделю
-    daily_stats = await db.execute(
-        select(
-            func.date_trunc('day', DigitalAccessLog.access_time).label('day'),
-            func.count().label('count')
-        )
-        .where(DigitalAccessLog.digital_book_id == digital_book_id)
-        .where(DigitalAccessLog.access_time >= datetime.now() - timedelta(days=7))
-        .group_by('day')
-        .order_by('day')
-    )
-    
-    return {
-        "book": book,
-        "unique_users": unique_users or 0,
-        "daily_accesses": [{"date": str(row[0]), "count": row[1]} for row in daily_stats]
-    }

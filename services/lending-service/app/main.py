@@ -161,26 +161,6 @@ async def get_user_loans(
     
     return LoanListResponse(total=total or 0, loans=loans)
 
-@app.get("/loans/book-copy/{copy_id}", response_model=LoanListResponse)
-async def get_copy_loans(
-    copy_id: int,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
-    db: AsyncSession = Depends(get_db)
-):
-    """Получить историю выдач для конкретного экземпляра книги"""
-    
-    count_query = select(func.count()).where(Loan.book_copy_id == copy_id)
-    query = select(Loan).where(Loan.book_copy_id == copy_id)
-    
-    total = await db.scalar(count_query)
-    
-    query = query.offset(skip).limit(limit).order_by(Loan.loan_date.desc())
-    result = await db.execute(query)
-    loans = result.scalars().all()
-    
-    return LoanListResponse(total=total or 0, loans=loans)
-
 @app.post("/loans", response_model=LoanResponse, status_code=status.HTTP_201_CREATED)
 async def create_loan(loan: LoanCreate, db: AsyncSession = Depends(get_db)):
     """Создать новую выдачу (выдать книгу пользователю)"""
@@ -332,7 +312,7 @@ async def get_user_loans_detailed(
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db)
 ):
-    """Получить все выдачи пользователя с деталями книг (для бенчмаркинга)"""
+    """Получить все выдачи пользователя с деталями книг"""
     
     result = await db.execute(
         select(Loan)
@@ -371,33 +351,6 @@ async def get_user_loans_detailed(
         ))
     
     return detailed_loans
-
-@app.get("/stats/loans")
-async def get_loans_stats(db: AsyncSession = Depends(get_db)):
-    """Получить статистику по выдачам"""
-    
-    total = await db.scalar(select(func.count()).select_from(Loan))
-    active = await db.scalar(select(func.count()).where(Loan.status == "active"))
-    returned = await db.scalar(select(func.count()).where(Loan.status == "returned"))
-    overdue = await db.scalar(
-        select(func.count()).where(
-            and_(Loan.status == "active", Loan.due_date < func.now())
-        )
-    )
-    
-    # Средняя длительность выдачи
-    avg_duration = await db.scalar(
-        select(func.avg(func.extract('day', Loan.return_date - Loan.loan_date)))
-        .where(Loan.return_date.isnot(None))
-    )
-    
-    return {
-        "total_loans": total or 0,
-        "active_loans": active or 0,
-        "returned_loans": returned or 0,
-        "overdue_loans": overdue or 0,
-        "average_loan_duration_days": round(avg_duration, 2) if avg_duration else 0
-    }
 
 @app.get("/stats/overdue", response_model=OverdueStats)
 async def get_overdue_loans(db: AsyncSession = Depends(get_db)):
