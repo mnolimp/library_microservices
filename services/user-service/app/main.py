@@ -5,6 +5,8 @@ from typing import Optional, List
 from app.database import get_db
 from app.models import User
 from app.schemas import UserCreate, UserUpdate, UserResponse, UserListResponse
+import msgpack
+from fastapi import Response
 
 app = FastAPI(title="user-service", version="0.1.0")
 
@@ -188,3 +190,45 @@ async def deactivate_user(user_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(user)
     return user
+
+@app.get("/internal/users/{user_id}")
+async def get_user_internal(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Внутренний вызов: получить пользователя (MessagePack)"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        return Response(status_code=404)
+    
+    data = {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "is_active": user.is_active
+    }
+    
+    return Response(
+        content=msgpack.packb(data),
+        media_type="application/x-msgpack"
+    )
+
+
+@app.get("/internal/users/by-email/{email}")
+async def get_user_by_email_internal(email: str, db: AsyncSession = Depends(get_db)):
+    """Внутренний вызов: получить пользователя по email (MessagePack)"""
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        return Response(status_code=404)
+    
+    data = {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name
+    }
+    
+    return Response(
+        content=msgpack.packb(data),
+        media_type="application/x-msgpack"
+    )
