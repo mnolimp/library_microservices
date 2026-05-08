@@ -372,8 +372,6 @@ async def get_user_loans_detailed(
     
     return detailed_loans
 
-# ==================== STATISTICS ENDPOINTS ====================
-
 @app.get("/stats/loans")
 async def get_loans_stats(db: AsyncSession = Depends(get_db)):
     """Получить статистику по выдачам"""
