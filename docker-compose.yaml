@@ -44,6 +44,8 @@ services:
     build: ./services/catalog-service
     ports:
       - "${CATALOG_PORT:-8001}:8000"
+      - "8001:8000"
+      - "50051:50051"
     env_file: .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-library:5432/library_db
@@ -58,6 +60,8 @@ services:
     build: ./services/user-service
     ports:
       - "${USER_PORT:-8002}:8000"
+      - "8002:8000"
+      - "50052:50052"
     env_file: .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-library:5432/library_db
