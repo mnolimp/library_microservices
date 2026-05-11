@@ -2,8 +2,8 @@ import grpc
 from concurrent import futures
 import asyncio
 
-import catalog_pb2
-import catalog_pb2_grpc
+from gRPC import catalog_pb2
+from gRPC import catalog_pb2_grpc
 
 from database import AsyncSessionLocal
 from models import Book

@@ -2,8 +2,8 @@ import grpc
 from concurrent import futures
 import asyncio
 
-import user_pb2
-import user_pb2_grpc
+from gRPC import user_pb2
+from gRPC import user_pb2_grpc
 
 from database import AsyncSessionLocal
 from models import User

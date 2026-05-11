@@ -1,10 +1,10 @@
 import grpc
 
-import catalog_pb2
-import catalog_pb2_grpc
+from gRPC import catalog_pb2
+from gRPC import catalog_pb2_grpc
 
-import user_pb2
-import user_pb2_grpc
+from gRPC import user_pb2
+from gRPC import user_pb2_grpc
 
 
 async def get_book(book_id: int):
