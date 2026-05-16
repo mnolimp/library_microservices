@@ -1,11 +1,16 @@
 import grpc
 from concurrent import futures
 import asyncio
+import sys
+import os
+
+sys.path.insert(0, '/app')
+sys.path.insert(0, '/app/app')
 
 import catalog_pb2
 import catalog_pb2_grpc
 
-from database import AsyncSessionLocal
+from database import get_db
 from models import Book
 from sqlalchemy import select
 
@@ -13,7 +18,7 @@ from sqlalchemy import select
 class CatalogServiceServicer(catalog_pb2_grpc.CatalogServiceServicer):
 
     async def GetBook(self, request, context):
-        async with AsyncSessionLocal() as session:
+        async with get_db() as session:
             result = await session.execute(
                 select(Book).where(Book.id == request.id)
             )
@@ -38,7 +43,7 @@ async def serve():
         server
     )
 
-    server.add_insecure_port('[::]:50051')
+    server.add_insecure_port('0.0.0.0:50051')
 
     await server.start()
     await server.wait_for_termination()
