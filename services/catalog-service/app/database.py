@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import text
+from contextlib import asynccontextmanager
 import os
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -27,4 +28,9 @@ async def get_db():
     async with async_session_maker() as session:
         # Устанавливаем схему для сессии
         await session.execute(text(f"SET search_path TO {SCHEMA}"))
+        yield session
+
+@asynccontextmanager
+async def get_db_context():
+    async with async_session_maker() as session:
         yield session
