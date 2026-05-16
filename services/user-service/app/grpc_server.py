@@ -10,7 +10,7 @@ sys.path.insert(0, '/app/app')
 import user_pb2
 import user_pb2_grpc
 
-from database import get_db
+from database import get_db_context
 from models import User
 from sqlalchemy import select
 
@@ -18,7 +18,7 @@ from sqlalchemy import select
 class UserServiceServicer(user_pb2_grpc.UserServiceServicer):
 
     async def GetUser(self, request, context):
-        async with get_db() as session:
+        async with get_db_context() as session:
             result = await session.execute(
                 select(User).where(User.id == request.id)
             )
@@ -30,7 +30,7 @@ class UserServiceServicer(user_pb2_grpc.UserServiceServicer):
 
             return user_pb2.UserResponse(
                 id=user.id,
-                name=user.name,
+                name=user.full_name,
                 email=user.email
             )
 

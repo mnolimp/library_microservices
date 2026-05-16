@@ -10,7 +10,7 @@ sys.path.insert(0, '/app/app')
 import catalog_pb2
 import catalog_pb2_grpc
 
-from database import get_db
+from database import get_db_context
 from models import Book
 from sqlalchemy import select
 
@@ -18,7 +18,7 @@ from sqlalchemy import select
 class CatalogServiceServicer(catalog_pb2_grpc.CatalogServiceServicer):
 
     async def GetBook(self, request, context):
-        async with get_db() as session:
+        async with get_db_context() as session:
             result = await session.execute(
                 select(Book).where(Book.id == request.id)
             )
