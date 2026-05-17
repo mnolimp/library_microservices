@@ -5,23 +5,10 @@ from contextlib import asynccontextmanager
 import os
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-SCHEMA = "users"
+SCHEMA = os.getenv("SCHEMA", "auth")
 
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable not set!")
-
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-)
-
-async_session_maker = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False
-)
-
+engine = create_async_engine(DATABASE_URL, echo=False)
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 Base = declarative_base()
 
 async def get_db():

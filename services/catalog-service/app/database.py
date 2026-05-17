@@ -33,4 +33,6 @@ async def get_db():
 @asynccontextmanager
 async def get_db_context():
     async with async_session_maker() as session:
+        # Устанавливаем схему для сессии
+        await session.execute(text(f"SET search_path TO {SCHEMA}"))
         yield session

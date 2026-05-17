@@ -3,6 +3,29 @@ CREATE SCHEMA IF NOT EXISTS catalog;
 CREATE SCHEMA IF NOT EXISTS users;
 CREATE SCHEMA IF NOT EXISTS lending;
 CREATE SCHEMA IF NOT EXISTS digital;
+CREATE SCHEMA IF NOT EXISTS auth;
+
+CREATE TABLE auth.users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    hashed_password VARCHAR(255),
+    full_name VARCHAR(255),
+    role VARCHAR(20) NOT NULL DEFAULT 'user',
+    github_id VARCHAR(64) UNIQUE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE auth.oauth_states (
+    id SERIAL PRIMARY KEY,
+    state VARCHAR(128) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_auth_users_email ON auth.users(email);
+CREATE INDEX idx_auth_users_github_id ON auth.users(github_id);
+CREATE INDEX idx_auth_oauth_states_state ON auth.oauth_states(state);
 
 CREATE TABLE catalog.books (
     id SERIAL PRIMARY KEY,

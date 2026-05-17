@@ -72,6 +72,25 @@ services:
     networks:
       - lib-net
 
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - "${AUTH_PORT:-8005}:8000"
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-library:5432/library_db
+      - SCHEMA=auth
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GITHUB_REDIRECT_URI=${GITHUB_REDIRECT_URI}
+    depends_on:
+      postgres-library:
+        condition: service_healthy
+    networks:
+      - lib-net
+
   lending-service:
     build: ./services/lending-service
     ports:

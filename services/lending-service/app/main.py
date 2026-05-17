@@ -291,8 +291,6 @@ async def get_loan_detailed(loan_id: int, db: AsyncSession = Depends(get_db)):
     if copy_info:
         book_info = await get_book_info(copy_info.get("book_id"))
     
-    print("book info: ", book_info, " copy info: ", copy_info)
-
     return LoanWithDetails(
         id=loan.id,
         user_id=loan.user_id,
