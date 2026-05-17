@@ -5,7 +5,9 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 import httpx
 import os
+import msgpack
 
+from app.grpc_clients import get_user, get_book
 from app.database import get_db
 from app.models import Loan
 from app.schemas import (
@@ -47,14 +49,10 @@ async def verify_book_copy_exists(copy_id: int) -> tuple[bool, Optional[dict]]:
     except Exception:
         return False, None
 
-async def get_user_info(user_id: int) -> Optional[dict]:
-    """Получить информацию о пользователе"""
+async def get_user_info(user_id: int):
+    """Получить информацию о пользователе через gRPC"""
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{USER_SERVICE_URL}/users/{user_id}")
-            if response.status_code == 200:
-                return response.json()
-            return None
+        return await get_user(user_id)
     except Exception:
         return None
 
@@ -62,21 +60,25 @@ async def get_book_copy_info(copy_id: int) -> Optional[dict]:
     """Получить информацию об экземпляре книги"""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{CATALOG_SERVICE_URL}/copies/{copy_id}")
+            response = await client.get(f"{CATALOG_SERVICE_URL}/internal/copies/{copy_id}")
             if response.status_code == 200:
-                return response.json()
+                return msgpack.unpackb(response.content, raw=False)
             return None
     except Exception:
         return None
 
 async def get_book_info(book_id: int) -> Optional[dict]:
-    """Получить информацию о книге по ID книги"""
+    """Получить информацию о книге через gRPC"""
+
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{CATALOG_SERVICE_URL}/books/{book_id}")
-            if response.status_code == 200:
-                return response.json()
+        book = await get_book(book_id)
+
+        # если grpc вернул пустой объект
+        if not book or book["id"] == 0:
             return None
+
+        return book
+
     except Exception:
         return None
 
@@ -289,6 +291,8 @@ async def get_loan_detailed(loan_id: int, db: AsyncSession = Depends(get_db)):
     if copy_info:
         book_info = await get_book_info(copy_info.get("book_id"))
     
+    print("book info: ", book_info, " copy info: ", copy_info)
+
     return LoanWithDetails(
         id=loan.id,
         user_id=loan.user_id,
@@ -300,7 +304,7 @@ async def get_loan_detailed(loan_id: int, db: AsyncSession = Depends(get_db)):
         created_at=loan.created_at,
         updated_at=loan.updated_at,
         user_email=user_info.get("email") if user_info else None,
-        user_name=user_info.get("full_name") if user_info else None,
+        user_name=user_info.get("name") if user_info else None,
         book_title=book_info.get("title") if book_info else None,
         book_author=book_info.get("author") if book_info else None,
         copy_number=copy_info.get("copy_number") if copy_info else None
@@ -344,7 +348,7 @@ async def get_user_loans_detailed(
             created_at=loan.created_at,
             updated_at=loan.updated_at,
             user_email=user_info.get("email") if user_info else None,
-            user_name=user_info.get("full_name") if user_info else None,
+            user_name=user_info.get("name") if user_info else None,
             book_title=book_info.get("title") if book_info else None,
             book_author=book_info.get("author") if book_info else None,
             copy_number=copy_info.get("copy_number") if copy_info else None
