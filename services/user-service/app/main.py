@@ -5,6 +5,7 @@ from typing import Optional, List
 from app.database import get_db
 from app.models import User
 from app.schemas import UserCreate, UserUpdate, UserResponse, UserListResponse
+from app.auth import require_admin, require_user, UserPrincipal
 import msgpack
 from fastapi import Response
 
@@ -21,7 +22,8 @@ async def get_users(
     email: Optional[str] = Query(None, description="Фильтр по email (частичное совпадение)"),
     full_name: Optional[str] = Query(None, description="Фильтр по имени (частичное совпадение)"),
     is_active: Optional[bool] = Query(None, description="Фильтр по статусу"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_admin),
 ):
     """Получить список пользователей с пагинацией и фильтрацией"""
     
@@ -52,7 +54,7 @@ async def get_users(
     return UserListResponse(total=total or 0, users=users)
 
 @app.get("/users/{user_id}", response_model=UserResponse)
-async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
+async def get_user(user_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Получить пользователя по ID"""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -80,7 +82,7 @@ async def get_user_by_email(email: str, db: AsyncSession = Depends(get_db)):
     return user
 
 @app.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
+async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Создать нового пользователя"""
     # Проверяем уникальность email
     result = await db.execute(select(User).where(User.email == user.email))
@@ -97,7 +99,7 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     return db_user
 
 @app.put("/users/{user_id}", response_model=UserResponse)
-async def update_user(user_id: int, user: UserUpdate, db: AsyncSession = Depends(get_db)):
+async def update_user(user_id: int, user: UserUpdate, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Обновить данные пользователя"""
     result = await db.execute(select(User).where(User.id == user_id))
     db_user = result.scalar_one_or_none()
@@ -127,7 +129,7 @@ async def update_user(user_id: int, user: UserUpdate, db: AsyncSession = Depends
     return db_user
 
 @app.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_user(user_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Удалить пользователя (мягкое удаление - деактивировать)"""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -143,7 +145,7 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
 @app.delete("/users/{user_id}/hard", status_code=status.HTTP_204_NO_CONTENT)
-async def hard_delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
+async def hard_delete_user(user_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Полностью удалить пользователя из БД"""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -158,7 +160,7 @@ async def hard_delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
 @app.patch("/users/{user_id}/activate", response_model=UserResponse)
-async def activate_user(user_id: int, db: AsyncSession = Depends(get_db)):
+async def activate_user(user_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Активировать пользователя"""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -175,7 +177,7 @@ async def activate_user(user_id: int, db: AsyncSession = Depends(get_db)):
     return user
 
 @app.patch("/users/{user_id}/deactivate", response_model=UserResponse)
-async def deactivate_user(user_id: int, db: AsyncSession = Depends(get_db)):
+async def deactivate_user(user_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Деактивировать пользователя"""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()

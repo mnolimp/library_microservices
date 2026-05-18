@@ -50,6 +50,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-library:5432/library_db
       - SCHEMA=catalog
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       postgres-library:
         condition: service_healthy
@@ -66,6 +67,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-library:5432/library_db
       - SCHEMA=users
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       postgres-library:
         condition: service_healthy
@@ -99,6 +101,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-library:5432/library_db
       - SCHEMA=lending
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       postgres-library:
         condition: service_healthy
@@ -113,6 +116,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-library:5432/library_db
       - SCHEMA=digital
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       postgres-library:
         condition: service_healthy

@@ -10,6 +10,7 @@ import msgpack
 from app.grpc_clients import get_user, get_book
 from app.database import get_db
 from app.models import Loan
+from app.auth import require_admin, require_user, UserPrincipal
 from app.schemas import (
     LoanCreate, LoanUpdate, LoanResponse, LoanReturn,
     LoanWithDetails, LoanListResponse, OverdueStats, LoanStatus
@@ -93,7 +94,8 @@ async def get_loans(
     user_id: Optional[int] = Query(None, description="Фильтр по пользователю"),
     status: Optional[str] = Query(None, description="Фильтр по статусу"),
     overdue_only: bool = Query(False, description="Только просроченные"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_admin),
 ):
     """Получить список выдач с пагинацией и фильтрацией"""
     
@@ -125,7 +127,7 @@ async def get_loans(
     return LoanListResponse(total=total or 0, loans=loans)
 
 @app.get("/loans/{loan_id}", response_model=LoanResponse)
-async def get_loan(loan_id: int, db: AsyncSession = Depends(get_db)):
+async def get_loan(loan_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Получить выдачу по ID"""
     result = await db.execute(select(Loan).where(Loan.id == loan_id))
     loan = result.scalar_one_or_none()
@@ -144,9 +146,13 @@ async def get_user_loans(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     active_only: bool = Query(False, description="Только активные выдачи"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_user),
 ):
     """Получить все выдачи пользователя"""
+    # user может смотреть только свои выдачи
+    if principal.role != "admin" and principal.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     count_query = select(func.count()).where(Loan.user_id == user_id)
     query = select(Loan).where(Loan.user_id == user_id)
@@ -164,7 +170,7 @@ async def get_user_loans(
     return LoanListResponse(total=total or 0, loans=loans)
 
 @app.post("/loans", response_model=LoanResponse, status_code=status.HTTP_201_CREATED)
-async def create_loan(loan: LoanCreate, db: AsyncSession = Depends(get_db)):
+async def create_loan(loan: LoanCreate, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_user)):
     """Создать новую выдачу (выдать книгу пользователю)"""
     
     # Проверяем существование пользователя
@@ -217,7 +223,8 @@ async def create_loan(loan: LoanCreate, db: AsyncSession = Depends(get_db)):
 async def return_loan(
     loan_id: int,
     return_data: LoanReturn = LoanReturn(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_user),
 ):
     """Вернуть книгу"""
     
@@ -248,7 +255,8 @@ async def return_loan(
 async def update_loan(
     loan_id: int,
     loan_update: LoanUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_admin),
 ):
     """Обновить информацию о выдаче"""
     
@@ -271,7 +279,7 @@ async def update_loan(
     return loan
 
 @app.get("/loans/{loan_id}/detailed", response_model=LoanWithDetails)
-async def get_loan_detailed(loan_id: int, db: AsyncSession = Depends(get_db)):
+async def get_loan_detailed(loan_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_user)):
     """Получить выдачу с деталями (пользователь + книга)"""
     
     result = await db.execute(select(Loan).where(Loan.id == loan_id))
@@ -312,9 +320,12 @@ async def get_loan_detailed(loan_id: int, db: AsyncSession = Depends(get_db)):
 async def get_user_loans_detailed(
     user_id: int,
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_user),
 ):
     """Получить все выдачи пользователя с деталями книг"""
+    if principal.role != "admin" and principal.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     result = await db.execute(
         select(Loan)
@@ -355,7 +366,7 @@ async def get_user_loans_detailed(
     return detailed_loans
 
 @app.get("/stats/overdue", response_model=OverdueStats)
-async def get_overdue_loans(db: AsyncSession = Depends(get_db)):
+async def get_overdue_loans(db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Получить список просроченных выдач"""
     
     query = select(Loan).where(

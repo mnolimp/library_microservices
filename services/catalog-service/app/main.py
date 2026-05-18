@@ -8,6 +8,7 @@ from app.schemas import (
     BookCreate, BookUpdate, BookResponse, BookWithCopiesResponse,
     BookCopyCreate, BookCopyResponse
 )
+from app.auth import require_admin, require_user, UserPrincipal
 import msgpack
 from fastapi import Response
 
@@ -34,7 +35,8 @@ async def get_books(
     title: Optional[str] = Query(None, description="Фильтр по названию"),
     author: Optional[str] = Query(None, description="Фильтр по автору"),
     book_type: Optional[str] = Query(None, description="Фильтр по типу книги (physical, digital, both)"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_user),
 ):
     """Получить список книг с пагинацией и фильтрацией"""
     query = select(Book)
@@ -54,7 +56,7 @@ async def get_books(
     return books
 
 @app.get("/books/{book_id}", response_model=BookWithCopiesResponse)
-async def get_book(book_id: int, db: AsyncSession = Depends(get_db)):
+async def get_book(book_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_user)):
     """Получить книгу по ID вместе с экземплярами"""
     result = await db.execute(select(Book).where(Book.id == book_id))
     book = result.scalar_one_or_none()
@@ -74,7 +76,7 @@ async def get_book(book_id: int, db: AsyncSession = Depends(get_db)):
     return BookWithCopiesResponse.model_validate(book)
 
 @app.post("/books", response_model=BookResponse, status_code=status.HTTP_201_CREATED)
-async def create_book(book: BookCreate, db: AsyncSession = Depends(get_db)):
+async def create_book(book: BookCreate, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Создать новую книгу"""
     # Проверяем уникальность ISBN
     result = await db.execute(select(Book).where(Book.isbn == book.isbn))
@@ -91,7 +93,7 @@ async def create_book(book: BookCreate, db: AsyncSession = Depends(get_db)):
     return db_book
 
 @app.put("/books/{book_id}", response_model=BookResponse)
-async def update_book(book_id: int, book: BookUpdate, db: AsyncSession = Depends(get_db)):
+async def update_book(book_id: int, book: BookUpdate, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Обновить информацию о книге"""
     result = await db.execute(select(Book).where(Book.id == book_id))
     db_book = result.scalar_one_or_none()
@@ -111,7 +113,7 @@ async def update_book(book_id: int, book: BookUpdate, db: AsyncSession = Depends
     return db_book
 
 @app.delete("/books/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_book(book_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_book(book_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Удалить книгу (каскадно удалит все экземпляры)"""
     result = await db.execute(select(Book).where(Book.id == book_id))
     book = result.scalar_one_or_none()
@@ -129,7 +131,8 @@ async def delete_book(book_id: int, db: AsyncSession = Depends(get_db)):
 async def get_book_copies(
     book_id: int,
     status_filter: Optional[str] = Query(None, description="Фильтр по статусу (available, loaned, maintenance, lost)"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_user),
 ):
     """Получить все экземпляры книги"""
     # Проверяем существование книги
@@ -154,7 +157,8 @@ async def get_book_copies(
 async def add_book_copy(
     book_id: int,
     copy: BookCopyCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_admin),
 ):
     """Добавить новый экземпляр книги"""
     # Проверяем существование книги
@@ -187,7 +191,8 @@ async def add_book_copy(
 async def update_copy_status(
     copy_id: int,
     status: str = Query(..., description="Новый статус (available, loaned, maintenance, lost)"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_admin),
 ):
     """Обновить статус экземпляра книги"""
     if status not in VALID_COPY_STATUSES:

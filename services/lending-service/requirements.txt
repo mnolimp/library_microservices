@@ -9,4 +9,4 @@ pydantic[email]==2.5.0
 msgpack==1.0.8
 protobuf==6.33.6
 grpcio==1.80.0
-grpcio-tools==1.80.0
+grpcio-tools==1.80.0python-jose[cryptography]==3.3.0

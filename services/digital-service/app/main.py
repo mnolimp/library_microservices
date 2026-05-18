@@ -14,6 +14,7 @@ from app.schemas import (
     DigitalAccessRequest, DigitalAccessResponse,
     DigitalBookWithStats, DigitalStats
 )
+from app.auth import require_admin, require_user, UserPrincipal
 
 # URL других сервисов
 CATALOG_SERVICE_URL = os.getenv("CATALOG_SERVICE_URL", "http://catalog-service:8001")
@@ -62,7 +63,8 @@ async def get_digital_books(
     limit: int = Query(100, ge=1, le=500),
     book_id: Optional[int] = Query(None, description="Фильтр по book_id"),
     format: Optional[str] = Query(None, description="Фильтр по формату"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_user),
 ):
     """Получить список электронных книг"""
     query = select(DigitalBook)
@@ -78,7 +80,7 @@ async def get_digital_books(
     return books
 
 @app.get("/digital-books/{digital_book_id}", response_model=DigitalBookResponse)
-async def get_digital_book(digital_book_id: int, db: AsyncSession = Depends(get_db)):
+async def get_digital_book(digital_book_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_user)):
     """Получить электронную книгу по ID"""
     result = await db.execute(select(DigitalBook).where(DigitalBook.id == digital_book_id))
     book = result.scalar_one_or_none()
@@ -91,7 +93,7 @@ async def get_digital_book(digital_book_id: int, db: AsyncSession = Depends(get_
     return book
 
 @app.get("/digital-books/by-book/{book_id}", response_model=DigitalBookResponse)
-async def get_digital_book_by_book_id(book_id: int, db: AsyncSession = Depends(get_db)):
+async def get_digital_book_by_book_id(book_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_user)):
     """Получить электронную книгу по ID оригинальной книги"""
     result = await db.execute(select(DigitalBook).where(DigitalBook.book_id == book_id))
     book = result.scalar_one_or_none()
@@ -106,7 +108,8 @@ async def get_digital_book_by_book_id(book_id: int, db: AsyncSession = Depends(g
 @app.post("/digital-books", response_model=DigitalBookResponse, status_code=status.HTTP_201_CREATED)
 async def create_digital_book(
     digital_book: DigitalBookCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_admin),
 ):
     """Создать электронную версию книги"""
     
@@ -139,7 +142,8 @@ async def create_digital_book(
 async def update_digital_book(
     digital_book_id: int,
     digital_book: DigitalBookUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_admin),
 ):
     """Обновить информацию об электронной книге"""
     result = await db.execute(select(DigitalBook).where(DigitalBook.id == digital_book_id))
@@ -160,7 +164,7 @@ async def update_digital_book(
     return db_book
 
 @app.delete("/digital-books/{digital_book_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_digital_book(digital_book_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_digital_book(digital_book_id: int, db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Удалить электронную книгу"""
     result = await db.execute(select(DigitalBook).where(DigitalBook.id == digital_book_id))
     book = result.scalar_one_or_none()
@@ -178,7 +182,7 @@ async def delete_digital_book(digital_book_id: int, db: AsyncSession = Depends(g
 async def request_access(
     request: DigitalAccessRequest,
     db: AsyncSession = Depends(get_db),
-    client_ip: str = "127.0.0.1"
+    principal: UserPrincipal = Depends(require_user),
 ):
     """Запросить доступ к электронной книге"""
     
@@ -195,7 +199,8 @@ async def get_access_logs(
     limit: int = Query(100, ge=1, le=500),
     user_id: Optional[int] = Query(None),
     digital_book_id: Optional[int] = Query(None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_admin),
 ):
     """Получить логи доступа"""
     query = select(DigitalAccessLog)
@@ -214,7 +219,8 @@ async def get_access_logs(
 async def check_access(
     user_id: int,
     book_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    principal: UserPrincipal = Depends(require_user),
 ):
     """Проверить, есть ли у пользователя доступ к книге"""
     
@@ -248,7 +254,7 @@ async def check_access(
     }
 
 @app.get("/stats", response_model=DigitalStats)
-async def get_stats(db: AsyncSession = Depends(get_db)):
+async def get_stats(db: AsyncSession = Depends(get_db), principal: UserPrincipal = Depends(require_admin)):
     """Получить статистику по цифровым книгам"""
     
     total_books = await db.scalar(select(func.count()).select_from(DigitalBook))
